@@ -5,5 +5,3 @@ from pydantic import BaseModel, Field
 class ChatRequest(BaseModel):
     session_id: str = Field(None, description="会话ID")
     prompt: str = Field(..., description="用户提问内容", min_length=1, max_length=2000)
-    stream: bool = Field(True, description="是否使用流式响应")
-
