@@ -1,5 +1,6 @@
 import os
 import json
+from datetime import datetime
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.messages import message_to_dict, messages_from_dict, BaseMessage
 from app.core.config import settings as config
@@ -22,12 +23,14 @@ class FileChatMessageHistory(BaseChatMessageHistory):
         """参数为单个BaseMessage，而非Sequence"""
         # 读取已有消息
         all_messages = self.messages  # 直接使用@property装饰的messages属性
-        # 追加单个消息（而非extend）
+        # 追加时间戳: 将时间戳存入 additional_kwargs（原生属性）
+        message.additional_kwargs["timestamp"] = datetime.now().isoformat()  # 转为字符串便于JSON序列化
+        # 追加单个消息
         all_messages.append(message)
         # 转换为字典列表并写入文件
         message_dicts = [message_to_dict(msg) for msg in all_messages]
         with open(self.file_path, "w", encoding="utf-8") as f:
-            json.dump(message_dicts, f, ensure_ascii=False)  # 加ensure_ascii=False避免中文乱码
+            json.dump(message_dicts, f, ensure_ascii=False, indent=2)  # 加ensure_ascii=False避免中文乱码
 
     @property  # property装饰器将messages方法转变成成员属性
     def messages(self) -> list[BaseMessage]:
