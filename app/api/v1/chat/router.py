@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from fastapi import APIRouter, Depends
 from app.api.v1.chat.schema import ChatRequest
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -14,13 +15,15 @@ router = APIRouter(
 # 通用工具函数：初始化RAG和会话配置
 def _init_rag_session(request: ChatRequest):
     """初始化RAG实例和会话配置"""
+    timestamp = datetime.now().isoformat()
     session_config = {
         "configurable": {
-            "session_id": request.session_id
+            "session_id": request.session_id,
+            "timestamp": timestamp
         }
     }
     rag = RAG()
-    return rag, session_config
+    return rag, session_config, timestamp
 
 # 流式响应接口
 @router.post("/stream", response_class=StreamingResponse)
@@ -29,8 +32,8 @@ async def chat_stream(request: ChatRequest):
     流式聊天接口
     返回SSE格式的流式响应，专门处理流式输出场景
     """
-    rag, session_config = _init_rag_session(request)
-    
+    rag, session_config, timestamp = _init_rag_session(request)
+
     async def generate_response():
         try:
             # 获取流式响应迭代器
@@ -54,6 +57,8 @@ async def chat_stream(request: ChatRequest):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
+            "Timestamp": timestamp,
+            "Access-Control-Allow-Origin": "*",
         }
     )
 
@@ -64,17 +69,26 @@ async def chat_completion(request: ChatRequest):
     非流式聊天接口
     返回完整的JSON响应，专门处理一次性输出场景
     """
+    timestamp = datetime.now().isoformat()
     try:
         rag, session_config = _init_rag_session(request)
         # 非流式调用
         response = rag.chain.invoke({"question": request.prompt}, session_config)
         return JSONResponse(
             content={"session_id": request.session_id, "response": response},
-            status_code=200
+            status_code=200,
+            headers={
+                "Timestamp": timestamp,
+                "Access-Control-Allow-Origin": "*",
+            }
         )
     except Exception as e:
         # 统一异常处理
         return JSONResponse(
             content={"session_id": request.session_id, "error": str(e)},
-            status_code=500
+            status_code=500,
+            headers={
+                "Timestamp": timestamp,
+                "Access-Control-Allow-Origin": "*",
+            }
         )
