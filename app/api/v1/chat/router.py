@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from app.api.v1.chat.schema import ChatRequest
 from fastapi.responses import StreamingResponse, JSONResponse
 from app.core.rag import RAG
+from app.core.history_store import get_history
 
 # 定义模块路由
 router = APIRouter(
@@ -15,16 +16,15 @@ router = APIRouter(
 # 通用工具函数：初始化RAG和会话配置
 def _init_rag_session(request: ChatRequest):
     """初始化RAG实例和会话配置"""
-    res_time = datetime.now().isoformat()
     session_config = {
         "configurable": {
             "session_id": request.session_id,
             "req_time": request.timestamp.isoformat(),
-            "res_time": res_time
+            "res_time": datetime.now().isoformat()
         }
     }
     rag = RAG()
-    return rag, session_config, res_time
+    return rag, session_config
 
 # 流式响应接口
 @router.post("/stream", response_class=StreamingResponse)
@@ -33,7 +33,9 @@ async def chat_stream(request: ChatRequest):
     流式聊天接口
     返回SSE格式的流式响应，专门处理流式输出场景
     """
-    rag, session_config, res_time = _init_rag_session(request)
+    rag, session_config = _init_rag_session(request)
+
+    res_time = datetime.now().isoformat()  # 初始化响应时间戳
 
     async def generate_response():
         try:
@@ -43,7 +45,10 @@ async def chat_stream(request: ChatRequest):
             # 逐个yield响应块（SSE格式）
             for chunk in response_stream:
                 yield f"data: {json.dumps({'chunk': chunk}, ensure_ascii=False)}\n\n"
-            
+            # 会话完成后更新响应时间戳
+            res_time = datetime.now().isoformat()
+            get_history(session_id=request.session_id, res_time=res_time).update_response_timestamp()
+            yield f"data: {json.dumps({'timestamp': res_time}, ensure_ascii=False)}\n\n"
             # 发送结束标记
             yield "data: [DONE]\n\n"
         except Exception as e:
@@ -58,7 +63,6 @@ async def chat_stream(request: ChatRequest):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "Timestamp": res_time,
             "Access-Control-Allow-Origin": "*",
         }
     )
@@ -70,25 +74,26 @@ async def chat_completion(request: ChatRequest):
     非流式聊天接口
     返回完整的JSON响应，专门处理一次性输出场景
     """
+    res_time = datetime.now().isoformat() # 初始化时间戳
     try:
-        rag, session_config, res_time = _init_rag_session(request)
+        rag, session_config = _init_rag_session(request)
         # 非流式调用
         response = rag.chain.invoke({"question": request.prompt}, session_config)
+        res_time = datetime.now().isoformat()
+        get_history(session_id=request.session_id, res_time=res_time).update_response_timestamp()
         return JSONResponse(
-            content={"session_id": request.session_id, "response": response},
+            content={"session_id": request.session_id, "timestamp": res_time, "response": response},
             status_code=200,
             headers={
-                "Timestamp": res_time,
                 "Access-Control-Allow-Origin": "*",
             }
         )
     except Exception as e:
         # 统一异常处理
         return JSONResponse(
-            content={"session_id": request.session_id, "error": str(e)},
+            content={"session_id": request.session_id, "timestamp": res_time, "error": str(e)},
             status_code=500,
             headers={
-                "Timestamp": res_time,
                 "Access-Control-Allow-Origin": "*",
             }
         )

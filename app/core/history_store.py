@@ -7,7 +7,7 @@ from app.core.config import settings as config
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
 
-def get_history(session_id, req_time, res_time):
+def get_history(session_id, req_time=None, res_time=None):
     return FileChatMessageHistory(session_id, req_time, res_time, config.HISTORY_PATH)
 
 
@@ -30,9 +30,6 @@ class FileChatMessageHistory(BaseChatMessageHistory):
         if isinstance(message, HumanMessage):
             # 用户消息 → 请求时间戳
             message.additional_kwargs["timestamp"] = self.req_time
-        elif isinstance(message, AIMessage):
-            # AI消息 → 响应时间戳
-            message.additional_kwargs["timestamp"] = self.res_time
         else:
             # 其他消息类型（如SystemMessage）→ 默认用当前时间
             message.additional_kwargs["timestamp"] = datetime.now().isoformat()
@@ -55,3 +52,23 @@ class FileChatMessageHistory(BaseChatMessageHistory):
     def clear(self) -> None:
         with open(self.file_path, "w", encoding="utf-8") as f:
             json.dump([], f)
+
+    def update_response_timestamp(self) -> None:
+        """更新最后一条AIMessage的响应时间戳"""
+        try:
+            with open(self.file_path, "r", encoding="utf-8") as f:
+                message_data = json.load(f)
+            # 引用最后一条消息并更新响应时间戳
+            last_msg = message_data[-1] if message_data else None
+            if last_msg and last_msg.get("type") == "ai":
+                last_msg.get("additional_kwargs", {}).setdefault("timestamp", self.res_time)
+                # 写回文件
+                with open(self.file_path, "w", encoding="utf-8") as f:
+                    json.dump(message_data, f, ensure_ascii=False, indent=2)
+
+        except FileNotFoundError:
+            # 无历史文件时跳过
+            pass
+        except IndexError:
+            # 极端情况：消息列表为空
+            pass
