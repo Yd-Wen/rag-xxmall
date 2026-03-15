@@ -7,6 +7,7 @@ from app.core.vector_store import VectorStoreService
 from app.core.config import settings as config
 from app.core.history_store import get_history
 from langchain_core.documents import Document
+from langchain_core.runnables.utils import ConfigurableFieldSpec
 
 
 class RAG:
@@ -60,6 +61,27 @@ class RAG:
             print("="*20, prompt, "="*20)
             return prompt
 
+        def get_history_factory_config()-> list[ConfigurableFieldSpec]:
+            history_factory_config=[
+                ConfigurableFieldSpec(
+                    id="session_id",
+                    annotation=str,
+                    name="Session ID",
+                    description="Unique identifier for the session.",
+                    default="",
+                    is_shared=True,
+                ),
+                ConfigurableFieldSpec(
+                    id="timestamp",
+                    annotation=str,
+                    name="Timestamp",
+                    description="Timestamp for the newly added message. Defaults to current time if not provided.",
+                    default=lambda: datetime.now().isoformat(),  # 默认值为当前时间的ISO格式字符串
+                    is_shared=True,
+                ),
+            ]
+            return history_factory_config
+
         chain = (
             {
                 "question": RunnablePassthrough(),
@@ -71,7 +93,10 @@ class RAG:
             chain,
             get_history,
             history_messages_key="history",
-            input_messages_key="question"
+            input_messages_key="question",
+            # 关键：告诉 LangChain 从 configurable 中读取参数传递给 get_history
+            configurable_keys=["session_id", "timestamp"],
+            history_factory_config=get_history_factory_config()
         )
 
         return conversation_chain

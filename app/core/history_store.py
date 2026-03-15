@@ -6,13 +6,14 @@ from langchain_core.messages import message_to_dict, messages_from_dict, BaseMes
 from app.core.config import settings as config
 
 
-def get_history(session_id):
-    return FileChatMessageHistory(session_id, config.HISTORY_PATH)
+def get_history(session_id, timestamp):
+    return FileChatMessageHistory(session_id, timestamp, config.HISTORY_PATH)
 
 
 class FileChatMessageHistory(BaseChatMessageHistory):
-    def __init__(self, session_id: str, storage_path: str):
+    def __init__(self, session_id: str, timestamp: str, storage_path: str):
         self.session_id = session_id      # 会话ID
+        self.timestamp = timestamp        # 时间戳
         self.storage_path = storage_path  # 不同ID的会话历史的存储路径
         # 会话历史文件路径
         self.file_path = os.path.join(self.storage_path, self.session_id + ".json")
@@ -24,7 +25,7 @@ class FileChatMessageHistory(BaseChatMessageHistory):
         # 读取已有消息
         all_messages = self.messages  # 直接使用@property装饰的messages属性
         # 追加时间戳: 将时间戳存入 additional_kwargs（原生属性）
-        message.additional_kwargs["timestamp"] = datetime.now().isoformat()  # 转为字符串便于JSON序列化
+        message.additional_kwargs["timestamp"] = self.timestamp 
         # 追加单个消息
         all_messages.append(message)
         # 转换为字典列表并写入文件

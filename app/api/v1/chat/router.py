@@ -69,9 +69,8 @@ async def chat_completion(request: ChatRequest):
     非流式聊天接口
     返回完整的JSON响应，专门处理一次性输出场景
     """
-    timestamp = datetime.now().isoformat()
     try:
-        rag, session_config = _init_rag_session(request)
+        rag, session_config, timestamp = _init_rag_session(request)
         # 非流式调用
         response = rag.chain.invoke({"question": request.prompt}, session_config)
         return JSONResponse(
