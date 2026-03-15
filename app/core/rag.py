@@ -17,7 +17,7 @@ class RAG:
                                           model=config.EMBEDDING_MODEL_NAME),
         )
         self.prompt_template = ChatPromptTemplate.from_messages([
-            ("system", "以我提供的参考资料为依据，简介和专业地回答用户问题。参考资料：{context}。"),
+            ("system", "以我提供的参考资料为依据，简洁专业地回答用户问题。回答问题时要求：回答内容格式上不要出现多级列表，最多一级列表；不要出现多级标题，最多一级标题；不要出现连续的换行符；对于没有在知识库匹配到答案的问题，提醒用户联系人工客服。参考资料：{context}。"),
             ("system", "并且我提供用户的对话历史记录。如下："),
             MessagesPlaceholder("history"),
             ("human", "请回答用户提问：{question}")

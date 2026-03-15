@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from app.api.v1.history.schema import HistoryRequest, HistoryResponse, Message
 from app.core.history_store import get_history
-
+from datetime import datetime
+from langchain_core.messages import BaseMessage
 
 # 定义模块路由
 router = APIRouter(
@@ -21,6 +22,14 @@ async def query_history(request: HistoryRequest):
     try:
         # 获取对话历史存储实例
         history_store = get_history(request.session_id)
+        # 添加系统消息
+        if len(history_store.messages) == 0:
+            history_store.add_message(BaseMessage(
+                type="ai", 
+                content="我是小闲小店的智能客服，请问有什么可以帮您的吗？",
+                additional_kwargs={"timestamp": datetime.now().isoformat()},
+                name="首次对话小闲 BOT 的系统提示消息"
+            ))
         # 获取所有消息
         messages = history_store.messages
         total = len(messages)
