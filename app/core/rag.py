@@ -72,10 +72,18 @@ class RAG:
                     is_shared=True,
                 ),
                 ConfigurableFieldSpec(
-                    id="timestamp",
+                    id="req_time",
                     annotation=str,
-                    name="Timestamp",
-                    description="Timestamp for the newly added message. Defaults to current time if not provided.",
+                    name="Request Timestamp",
+                    description="Timestamp for the request. Defaults to current time if not provided.",
+                    default=lambda: datetime.now().isoformat(),  # 默认值为当前时间的ISO格式字符串
+                    is_shared=True,
+                ),
+                ConfigurableFieldSpec(
+                    id="res_time",
+                    annotation=str,
+                    name="Response Timestamp",
+                    description="Timestamp for the response. Defaults to current time if not provided.",
                     default=lambda: datetime.now().isoformat(),  # 默认值为当前时间的ISO格式字符串
                     is_shared=True,
                 ),
@@ -94,8 +102,6 @@ class RAG:
             get_history,
             history_messages_key="history",
             input_messages_key="question",
-            # 关键：告诉 LangChain 从 configurable 中读取参数传递给 get_history
-            configurable_keys=["session_id", "timestamp"],
             history_factory_config=get_history_factory_config()
         )
 
