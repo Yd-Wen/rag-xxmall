@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
     MD5_PATH: str = str(BASE_DIR / "data" / "knowledge_base" / "md5.text")
+    KNOWLEDGE_RECORD_PATH: str = str(BASE_DIR / "data" / "knowledge_base" / "records.json")
     PERSIST_DIRECTORY: str = str(BASE_DIR / "data" / "chroma_db")
     HISTORY_PATH: str = str(BASE_DIR / "data" / "chat_history")
 
