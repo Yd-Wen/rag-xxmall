@@ -193,7 +193,7 @@ class KnowledgeBase:
         # 校验
         self._validate_type(request.category)
         if _get_record(request.id):
-            return "【跳过】知识库已存在"
+            return "【跳过】已存在"
         # 分割文本
         knowledge_chunks = self._split_text(request.content)
         # 创建 metadata
@@ -213,7 +213,7 @@ class KnowledgeBase:
             "update_time": datetime.now().isoformat()
         }])
 
-        return "【成功】添加到知识库"
+        return "【成功】已添加"
 
     def update(self, request: KnowledgeRequest) -> str:
         """
@@ -224,7 +224,7 @@ class KnowledgeBase:
         # 获取现有记录
         existing_record = _get_record(request.id)
         if not existing_record:
-            return "【跳过】知识库不存在"
+            return "【跳过】不存在"
         
         new_md5 = existing_record['md5']
         new_chroma_ids = existing_record['chroma_ids']
@@ -250,7 +250,7 @@ class KnowledgeBase:
         updated_record["update_time"] = datetime.now().isoformat()
         # 保存更新后的记录
         _save_records([updated_record])
-        return "【成功】更新知识库"
+        return "【成功】已更新"
 
     def get(self, category: str = None) -> Dict[str,List[Dict]]:
         """
@@ -289,7 +289,7 @@ class KnowledgeBase:
         """
         existing_record = _get_record(record_id)
         if not existing_record:
-            return "【跳过】知识库不存在"
+            return "【跳过】不存在"
         
         # 删除向量
         self.chroma.delete(ids=existing_record["chroma_ids"])
@@ -297,4 +297,4 @@ class KnowledgeBase:
         remove_md5(existing_record['md5'])
         # 删除记录
         _remove_record(record_id)
-        return "【成功】删除知识库"
+        return "【成功】已删除"
