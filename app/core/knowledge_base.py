@@ -13,7 +13,7 @@
 """
 import os
 import hashlib
-
+import json
 from app.core.config import settings as config
 from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -135,9 +135,7 @@ class KnowledgeBase:
     知识库核心类 - 支持file/goods/recommend三种类型
     """
     def __init__(self):
-        ALLOWED_TYPES = ['file', 'goods', 'recommend']  # 允许的知识库类型
-        READ_ONLY_FIELDS = ['id', 'create_time']  # 不可修改的字段列表
-        MODIFIABLE_FIELDS = ['category', 'url', 'md5', 'chroma_ids', 'update_time'] # 可修改的字段列表
+        self.ALLOWED_TYPES = ['file', 'goods', 'recommend']  # 允许的知识库类型
         os.makedirs(config.PERSIST_DIRECTORY, exist_ok=True)  # 创建数据库目录, 如果已存在则不创建
         # Chroma 数据库实例
         self.chroma = Chroma(
