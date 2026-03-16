@@ -2,7 +2,7 @@
     知识库核心模块
     知识库记录存储规范：
     {
-        "_id": "文件标题/商品ID/推荐ID（唯一标识）",
+        "id": "文件标题/商品ID/推荐ID（唯一标识）",
         "category": "file/goods/recommend",
         "url": ["云存储路径列表"],
         "md5": "内容MD5",
@@ -19,6 +19,8 @@ from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from datetime import datetime
+from app.api.v1.knowledge.schema import KnowledgeRequest
+from typing import List, Dict, Optional
 
 
 def check_md5(md5_str) -> bool:
@@ -113,7 +115,7 @@ def _get_record(record_id: str) -> Optional[Dict]:
     """
     records = _load_records()
     for record in records:
-        if record.get('_id') == record_id:
+        if record.get('id') == record_id:
             return record
     return None
 
@@ -122,7 +124,7 @@ def _remove_record(record_id: str) -> bool:
     根据唯一ID删除知识库记录
     """
     records = _load_records()
-    new_records = [record for record in records if record.get('_id') != record_id]
+    new_records = [record for record in records if record.get('id') != record_id]
     if len(new_records) < len(records):
         _save_records(new_records)
         return True
@@ -134,7 +136,7 @@ class KnowledgeBase:
     """
     def __init__(self):
         ALLOWED_TYPES = ['file', 'goods', 'recommend']  # 允许的知识库类型
-        READ_ONLY_FIELDS = ['_id', 'create_time']  # 不可修改的字段列表
+        READ_ONLY_FIELDS = ['id', 'create_time']  # 不可修改的字段列表
         MODIFIABLE_FIELDS = ['category', 'url', 'md5', 'chroma_ids', 'update_time'] # 可修改的字段列表
         os.makedirs(config.PERSIST_DIRECTORY, exist_ok=True)  # 创建数据库目录, 如果已存在则不创建
         # Chroma 数据库实例
@@ -175,7 +177,7 @@ class KnowledgeBase:
         metadatas = []
         for idx in range(length):
             metadatas.append({
-                "_id": record_id,
+                "id": record_id,
                 "category": category,
                 "url": url,
                 "chunk_index": idx,
@@ -184,33 +186,30 @@ class KnowledgeBase:
             })
         return metadatas
 
-    def upload(self, record_id: str, category: str, content: str, url: List[str]) -> str:
+    def upload(self, request: KnowledgeRequest) -> str:
         """
         上传知识库
-        :param record_id: 记录ID
-        :param category: 知识库分类
-        :param content: 内容
-        :param url: URL列表
+        :param request: 知识库上传请求
         :return: 响应消息
         """
         # 校验
-        self._validate_type(category)
-        if _get_record(record_id):
+        self._validate_type(request.category)
+        if _get_record(request.id):
             return "【跳过】知识库已存在"
         # 分割文本
-        knowledge_chunks = self._split_text(content)
+        knowledge_chunks = self._split_text(request.content)
         # 创建 metadata
-        metadatas = self._create_metadatas(record_id, category, url, len(knowledge_chunks))
+        metadatas = self._create_metadatas(request.id, request.category, request.url, len(knowledge_chunks))
         # 保存到知识库
         chroma_ids = self.chroma.add_texts(texts=knowledge_chunks, metadatas=metadatas)
         # 保存 MD5
-        save_md5(get_md5(content))
+        save_md5(get_md5(request.content))
         # 保存记录
         _save_records([{
-            "_id": record_id,
-            "category": category,
-            "url": url,
-            "md5": get_md5(content),
+            "id": request.id,
+            "category": request.category,
+            "url": request.url,
+            "md5": get_md5(request.content),
             "chroma_ids": chroma_ids,
             "create_time": datetime.now().isoformat(),
             "update_time": datetime.now().isoformat()
@@ -218,36 +217,36 @@ class KnowledgeBase:
 
         return "【成功】添加到知识库"
 
-    def update(self, record_id: str, url: List[str] = None, content: str = None) -> str:
+    def update(self, request: KnowledgeRequest) -> str:
         """
         更新知识库
         """
         # 校验
-        self._validate_type(category)
+        self._validate_type(request.category)
         # 获取现有记录
-        existing_record = _get_record(record_id)
+        existing_record = _get_record(request.id)
         if not existing_record:
             return "【跳过】知识库不存在"
         
         new_md5 = existing_record['md5']
         new_chroma_ids = existing_record['chroma_ids']
         # 更新向量存储
-        if content is not None and content.strip():
-            new_md5 = get_md5(content)
+        if request.content is not None and request.content.strip():
+            new_md5 = get_md5(request.content)
             # 内容变更才更新向量
             if new_md5 != existing_record['md5']:
                 need_update_vector = True
                 # 删除旧向量
                 self.chroma.delete(ids=existing_record["chroma_ids"])
                 # 创建新向量
-                chunks = self._split_text(content)
-                metadatas = self._create_metadatas(record_id, existing_record['category'], url, len(chunks))
+                chunks = self._split_text(request.content)
+                metadatas = self._create_metadatas(request.id, existing_record['category'], request.url, len(chunks))
                 new_chroma_ids = self.chroma.add_texts(texts=chunks, metadatas=metadatas)
 
         # 更新记录
         updated_record = existing_record.copy()
-        if url is not None:
-            updated_record["url"] = url
+        if request.url is not None:
+            updated_record["url"] = request.url
         updated_record["md5"] = new_md5
         updated_record["chroma_ids"] = new_chroma_ids
         updated_record["update_time"] = datetime.now().isoformat()
@@ -255,13 +254,13 @@ class KnowledgeBase:
         _save_records([updated_record])
         return "【成功】更新知识库"
 
-    def get(self) -> Dict[str,List[Dict]]:
+    def get(self, category: str = None) -> Dict[str,List[Dict]]:
         """
         获取所有知识库（按分类分组）
         :return: 分组结果，示例：
         {
-            "file": [{"_id": "标题1", "url": ["url1"], "create_time": "xxx"}, ...],
-            "goods": [{"_id": "goods001", "url": ["img1"], "create_time": "xxx"}, ...],
+            "file": [{"id": "标题1", "url": ["url1"], "create_time": "xxx"}, ...],
+            "goods": [{"id": "goods001", "url": ["img1"], "create_time": "xxx"}, ...],
             "recommend": [...]
         }
         """
@@ -272,13 +271,16 @@ class KnowledgeBase:
             category = record['category']
             # 仅返回核心信息，避免数据过大
             simplified_record = {
-                "_id": record['_id'],
+                "id": record['id'],
                 "url": record['url'],
                 "create_time": record['create_time'],
                 "update_time": record['update_time']
             }
             result[category].append(simplified_record)
         
+        if category and category in self.ALLOWED_CATEGORIES:
+            return {category: result[category]}
+
         return result
 
     def remove(self, record_id: str) -> str:
@@ -298,15 +300,3 @@ class KnowledgeBase:
         # 删除记录
         _remove_record(record_id)
         return "【成功】删除知识库"
-
-
-if __name__ == '__main__':
-    kb = KnowledgeBase()
-    res = kb.upload("test", "test.txt")
-    print(res)
-    # r1 = get_md5('123456')
-    # r2 = get_md5('123465')
-    # r3 = get_md5('123456')
-    # print(r1, r2, r3)
-    # save_md5(r1)
-    # print(check_md5("e10adc3949ba59abbe56e057f20f883e"))

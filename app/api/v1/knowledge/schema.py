@@ -1,8 +1,9 @@
 from pydantic import BaseModel, Field
+from typing import List, Optional
 
 # 知识库记录
 class KnowledgeRecord(BaseModel):
-    _id: str = Field(..., description="唯一标识：文件标题/商品ID/推荐ID", min_length=1)
+    id: str = Field(..., description="唯一标识：文件标题/商品ID/推荐ID", min_length=1)
     category: str = Field(default='file', description="知识库分类")
     url: list[str] = Field(default_factory=list, description="文件URL列表")
     md5: str = Field(..., description="内容MD5")
@@ -11,15 +12,14 @@ class KnowledgeRecord(BaseModel):
     update_time: str = Field(default_factory=lambda: datetime.now().isoformat(), description="更新时间")
 
 
-# 知识库上传
+# 知识库上传/更新
 class KnowledgeRequest(BaseModel):
-    category: str = Field(default='file', description="知识库分类", min_length=1)
-    name: str = Field(..., description="名字", min_length=1)
-    data: str = Field(..., description="内容", min_length=1)
+    id: str = Field(..., description="唯一标识：文件标题/商品ID/推荐ID", min_length=1)
+    category: Optional[str] = Field(default='file', description="知识库分类", min_length=1)
+    content: str = Field(..., description="内容", min_length=1)
+    url: List[str] = Field(default=[], description="文件URL列表")
 
 
 class KnowledgeResponse(BaseModel):
-    category: str = Field(default='file', description="知识库分类")
-    name: str = Field(..., description="名字")
-    url: str = Field(..., description="文件URL")
+    id: str = Field(..., description="唯一标识：文件标题/商品ID/推荐ID", min_length=1)
     message: str = Field(..., description="响应消息")
