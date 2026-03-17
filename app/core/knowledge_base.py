@@ -278,6 +278,8 @@ class KnowledgeBase:
         # 获取现有记录
         existing_record = _get_record(request.id)
         if not existing_record:
+            if request.category != 'file':
+                return self.upload(request)  # 对于非文件类型，如果记录不存在则直接上传
             return "【跳过】知识库不存在"
         # 获取新MD5
         md5_str = get_md5(request.content)
