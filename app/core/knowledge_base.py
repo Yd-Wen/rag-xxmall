@@ -23,7 +23,7 @@ from app.api.v1.knowledge.schema import KnowledgeRequest
 from typing import List, Dict, Optional
 
 
-def check_md5(md5_str) -> bool:
+def check_md5(md5_str: str) -> bool:
     """
     检查MD5字符串是否已经处理过
     :param md5_str:
@@ -42,16 +42,43 @@ def check_md5(md5_str) -> bool:
         return False
 
 
-def save_md5(md5_str) -> None:
+def append_md5(md5_str_list: List[str]) -> None:
     """
-    保存MD5字符串，记录到文件保存
-    :param md5_str:
+    写入MD5字符串（追加模式）
+    :param md5_str_list:
     :return:
     """
     # 追加模式
     with open(config.MD5_PATH, 'a', encoding='utf-8') as f:
-        f.write(md5_str + '\n')
+        for md5_str in md5_str_list:
+            f.write(md5_str + '\n')
 
+def write_md5(md5_str_list: List[str]) -> None:
+    """
+    写入MD5字符串（覆盖模式）
+    :param md5_str_list:
+    :return:
+    """
+    with open(config.MD5_PATH, 'w', encoding='utf-8') as f:
+        for md5_str in md5_str_list:
+            f.write(md5_str + '\n')
+
+def update_md5(old_md5: str, new_md5: str) -> None:
+    """
+    更新MD5字符串（先删除旧的，再覆盖新的）
+    :param old_md5:
+    :param new_md5:
+    :return:
+    """
+    if not os.path.exists(config.MD5_PATH):
+        return
+    # 读取所有MD5记录
+    with open(config.MD5_PATH, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    # 过滤掉要删除的MD5字符串
+    new_lines = [line if line.strip() != old_md5 else new_md5 for line in lines]
+    # 将过滤后的MD5记录写回文件
+    write_md5(new_lines)
 
 def get_md5(file_str, encoding='utf-8') -> str:
     """
@@ -66,9 +93,9 @@ def get_md5(file_str, encoding='utf-8') -> str:
     md5_hex = md5.hexdigest()           # 获取MD5的十六进制字符串
     return md5_hex
 
-def remove_md5(md5_str) -> None:
+def remove_md5(md5_str: str) -> None:
     """
-    从MD5记录文件中删除指定的MD5字符串
+    从MD5记录文件中删除指定的MD5字符串（先删除旧的，再覆盖新的）
     :param md5_str:
     :return:
     """
@@ -80,8 +107,7 @@ def remove_md5(md5_str) -> None:
     # 过滤掉要删除的MD5字符串
     new_lines = [line for line in lines if line.strip() != md5_str]
     # 将过滤后的MD5记录写回文件
-    with open(config.MD5_PATH, 'w', encoding='utf-8') as f:
-        f.writelines(new_lines)
+    write_md5(new_lines)
 
 def _load_records() -> List[Dict]:
 
@@ -100,12 +126,21 @@ def _load_records() -> List[Dict]:
             json.dump([], f, ensure_ascii=False, indent=2)
         return []
 
-def _save_records(new_records: List[Dict]) -> None:
+def _append_records(records: List[Dict]) -> None:
     """
-    保存知识库记录到文件
+    追加知识库记录到文件
     """
-    records = _load_records()
-    records.extend(new_records)
+    # 先加载现有记录
+    existing_records = _load_records()
+    # 合并新记录
+    existing_records.extend(records)
+    # 覆盖写入合并后的记录（保证JSON格式正确）
+    _write_records(existing_records)
+
+def _write_records(records: List[Dict]) -> None:
+    """
+    保存知识库记录到文件（覆盖写入）
+    """
     with open(config.KNOWLEDGE_RECORD_PATH, 'w', encoding='utf-8') as f:
         json.dump(records, f, ensure_ascii=False, indent=2)
 
@@ -119,14 +154,29 @@ def _get_record(record_id: str) -> Optional[Dict]:
             return record
     return None
 
+def _update_record(record_id: str, new_record: Dict) -> bool:
+    """
+    根据唯一ID更新知识库记录（先删除旧的，再覆盖新的）
+    """
+    records = _load_records()
+    updated = False
+    for idx, record in enumerate(records):
+        if record.get('id') == record_id:
+            records[idx] = new_record
+            updated = True
+            break
+    if updated:
+        _write_records(records)
+    return updated
+
 def _remove_record(record_id: str) -> bool:
     """
-    根据唯一ID删除知识库记录
+    根据唯一ID删除知识库记录（先删除旧的，再覆盖新的）
     """
     records = _load_records()
     new_records = [record for record in records if record.get('id') != record_id]
     if len(new_records) < len(records):
-        _save_records(new_records)
+        _write_records(new_records)
         return True
     return False
 
@@ -135,7 +185,7 @@ class KnowledgeBase:
     知识库核心类 - 支持file/goods/recommend三种类型
     """
     def __init__(self):
-        self.ALLOWED_TYPES = ['file', 'goods', 'recommend']  # 允许的知识库类型
+        self.ALLOWED_CATEGORIES = ['file', 'goods', 'recommend']  # 允许的知识库类型
         os.makedirs(config.PERSIST_DIRECTORY, exist_ok=True)  # 创建数据库目录, 如果已存在则不创建
         # Chroma 数据库实例
         self.chroma = Chroma(
@@ -156,8 +206,8 @@ class KnowledgeBase:
         """
         验证知识库类型是否合法
         """
-        if category not in self.ALLOWED_TYPES:
-            raise ValueError(f"非法的知识库类型：{category}，仅支持{self.ALLOWED_TYPES}")
+        if category not in self.ALLOWED_CATEGORIES:
+            raise ValueError(f"非法的知识库类型：{category}，仅支持{self.ALLOWED_CATEGORIES}")
 
     def _split_text(self, content: str) -> List[str]:
         """
@@ -177,7 +227,7 @@ class KnowledgeBase:
             metadatas.append({
                 "id": record_id,
                 "category": category,
-                "url": url,
+                "url": url if url else [""],
                 "chunk_index": idx,
                 "create_time": current_time,
                 "update_time": current_time
@@ -194,7 +244,9 @@ class KnowledgeBase:
         self._validate_type(request.category)
         if _get_record(request.id):
             return "【跳过】知识库已同步"
-        if check_md5(get_md5(request.content)):
+        # 获取 MD5
+        md5_str = get_md5(request.content)
+        if check_md5(md5_str):
             return "【跳过】存在相同知识"
         # 分割文本
         knowledge_chunks = self._split_text(request.content)
@@ -203,13 +255,13 @@ class KnowledgeBase:
         # 保存到知识库
         chroma_ids = self.chroma.add_texts(texts=knowledge_chunks, metadatas=metadatas)
         # 保存 MD5
-        save_md5(get_md5(request.content))
+        append_md5([md5_str])
         # 保存记录
-        _save_records([{
+        _append_records([{
             "id": request.id,
             "category": request.category,
             "url": request.url,
-            "md5": get_md5(request.content),
+            "md5": md5_str,
             "chroma_ids": chroma_ids,
             "create_time": datetime.now().isoformat(),
             "update_time": datetime.now().isoformat()
@@ -226,7 +278,7 @@ class KnowledgeBase:
         # 获取现有记录
         existing_record = _get_record(request.id)
         if not existing_record:
-            return "【跳过】不存在"
+            return "【跳过】知识库不存在"
         
         new_md5 = existing_record['md5']
         new_chroma_ids = existing_record['chroma_ids']
@@ -235,24 +287,30 @@ class KnowledgeBase:
             new_md5 = get_md5(request.content)
             # 内容变更才更新向量
             if new_md5 != existing_record['md5']:
+                print(f"内容变更，更新向量 - 记录ID: {request.id}")
+                print(f"旧MD5: {existing_record['md5']}, 新MD5: {new_md5}")
                 need_update_vector = True
-                # 删除旧向量
+                # 删除旧向量 / MD5
                 self.chroma.delete(ids=existing_record["chroma_ids"])
-                # 创建新向量
+                # 创建新向量 / MD5
                 chunks = self._split_text(request.content)
                 metadatas = self._create_metadatas(request.id, existing_record['category'], request.url, len(chunks))
                 new_chroma_ids = self.chroma.add_texts(texts=chunks, metadatas=metadatas)
+                # 更新MD5
+                update_md5(existing_record['md5'], new_md5)
 
         # 更新记录
         updated_record = existing_record.copy()
         if request.url is not None:
             updated_record["url"] = request.url
+        else: 
+            updated_record["url"] = [""]
         updated_record["md5"] = new_md5
         updated_record["chroma_ids"] = new_chroma_ids
         updated_record["update_time"] = datetime.now().isoformat()
         # 保存更新后的记录
-        _save_records([updated_record])
-        return "【成功】已更新"
+        _update_record(existing_record['id'], updated_record)
+        return "【成功】知识库已更新"
 
     def get(self, category: str = None) -> Dict[str,List[Dict]]:
         """
