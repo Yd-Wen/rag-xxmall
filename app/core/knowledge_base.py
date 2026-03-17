@@ -150,7 +150,6 @@ def _get_record(record_id: str) -> Optional[Dict]:
     """
     records = _load_records()
     for record in records:
-        print(record.get('id'), record_id)
         if record.get('id') == record_id:
             return record
     return None
