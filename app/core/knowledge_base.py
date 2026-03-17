@@ -194,6 +194,8 @@ class KnowledgeBase:
         self._validate_type(request.category)
         if _get_record(request.id):
             return "【跳过】知识库已同步"
+        if check_md5(get_md5(request.content)):
+            return "【跳过】存在相同知识"
         # 分割文本
         knowledge_chunks = self._split_text(request.content)
         # 创建 metadata
