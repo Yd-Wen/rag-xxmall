@@ -48,20 +48,12 @@ async def get_knowledge(category: str = Query(None, description="知识库分类
         status_code=200
     )
 
-@router.put("/update/{id}", response_class=JSONResponse)
-async def update_knowledge(
-    request: KnowledgeRequest,
-    id: str = Path(..., description="要更新的知识库记录ID"),
-):
+@router.post("/update", response_class=JSONResponse)
+async def update_knowledge(request: KnowledgeRequest):
     """
     更新知识库
     根据id（文件标题/商品ID/推荐ID）更新知识库中的内容，如果内容有变更则重新生成向量
     """
-    if request.id != id:
-        raise HTTPException(
-            status_code=400,
-            detail=f"路径ID({id})与请求体ID({request.id})不一致，更新失败"
-        )
     kb = KnowledgeBase()
     result = kb.update(request)
 

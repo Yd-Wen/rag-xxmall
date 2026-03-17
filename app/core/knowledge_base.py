@@ -279,33 +279,23 @@ class KnowledgeBase:
         existing_record = _get_record(request.id)
         if not existing_record:
             return "【跳过】知识库不存在"
+        # 获取新MD5
+        md5_str = get_md5(request.content)
+        if check_md5(md5_str):
+            return "【跳过】存在相同知识"
         
-        new_md5 = existing_record['md5']
-        new_chroma_ids = existing_record['chroma_ids']
-        # 更新向量存储
-        if request.content is not None and request.content.strip():
-            new_md5 = get_md5(request.content)
-            # 内容变更才更新向量
-            if new_md5 != existing_record['md5']:
-                print(f"内容变更，更新向量 - 记录ID: {request.id}")
-                print(f"旧MD5: {existing_record['md5']}, 新MD5: {new_md5}")
-                need_update_vector = True
-                # 删除旧向量 / MD5
-                self.chroma.delete(ids=existing_record["chroma_ids"])
-                # 创建新向量 / MD5
-                chunks = self._split_text(request.content)
-                metadatas = self._create_metadatas(request.id, existing_record['category'], request.url, len(chunks))
-                new_chroma_ids = self.chroma.add_texts(texts=chunks, metadatas=metadatas)
-                # 更新MD5
-                update_md5(existing_record['md5'], new_md5)
-
+        # 删除旧向量
+        self.chroma.delete(ids=existing_record["chroma_ids"])
+        # 创建新向量
+        chunks = self._split_text(request.content)
+        metadatas = self._create_metadatas(request.id, existing_record['category'], request.url, len(chunks))
+        new_chroma_ids = self.chroma.add_texts(texts=chunks, metadatas=metadatas)
+        # 更新MD5
+        update_md5(existing_record['md5'], md5_str)
         # 更新记录
         updated_record = existing_record.copy()
-        if request.url is not None:
-            updated_record["url"] = request.url
-        else: 
-            updated_record["url"] = [""]
-        updated_record["md5"] = new_md5
+        updated_record["url"] = request.url if request.url else existing_record["url"]
+        updated_record["md5"] = md5_str
         updated_record["chroma_ids"] = new_chroma_ids
         updated_record["update_time"] = datetime.now().isoformat()
         # 保存更新后的记录
