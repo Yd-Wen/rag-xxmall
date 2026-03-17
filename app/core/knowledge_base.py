@@ -103,9 +103,9 @@ def remove_md5(md5_str: str) -> None:
         return
     # 读取所有MD5记录
     with open(config.MD5_PATH, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
+        lines = [line.strip() for line in f.readlines()]
     # 过滤掉要删除的MD5字符串
-    new_lines = [line for line in lines if line.strip() != md5_str]
+    new_lines = [line for line in lines if line.strip() != md5_str and line.strip()]
     # 将过滤后的MD5记录写回文件
     write_md5(new_lines)
 
@@ -150,6 +150,7 @@ def _get_record(record_id: str) -> Optional[Dict]:
     """
     records = _load_records()
     for record in records:
+        print(record.get('id'), record_id)
         if record.get('id') == record_id:
             return record
     return None
@@ -341,7 +342,7 @@ class KnowledgeBase:
         """
         existing_record = _get_record(record_id)
         if not existing_record:
-            return "【跳过】不存在"
+            return "【跳过】知识库不存在"
         
         # 删除向量
         self.chroma.delete(ids=existing_record["chroma_ids"])
@@ -349,4 +350,4 @@ class KnowledgeBase:
         remove_md5(existing_record['md5'])
         # 删除记录
         _remove_record(record_id)
-        return "【成功】已删除"
+        return "【成功】知识库已删除"

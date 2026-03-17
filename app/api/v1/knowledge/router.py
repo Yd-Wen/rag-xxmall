@@ -67,17 +67,17 @@ async def update_knowledge(request: KnowledgeRequest):
         status_code=200
     )
 
-@router.delete("/delete/{id}", response_class=JSONResponse)
-async def delete_knowledge(id: str = Path(..., description="要删除的知识库记录ID")):
+@router.post("/delete", response_class=JSONResponse)
+async def delete_knowledge(request: KnowledgeRequest):
     """
     删除知识库
     根据id（文件标题/商品ID/推荐ID）删除知识库中的内容
     """
     kb = KnowledgeBase()
-    result = kb.remove(id)
+    result = kb.remove(request.id)
 
     response = KnowledgeResponse(
-        id=id,
+        id=request.id,
         message=result
     )
 

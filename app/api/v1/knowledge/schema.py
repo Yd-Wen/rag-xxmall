@@ -16,7 +16,7 @@ class KnowledgeRecord(BaseModel):
 class KnowledgeRequest(BaseModel):
     id: str = Field(..., description="唯一标识：文件标题/商品ID/推荐ID", min_length=1)
     category: Optional[str] = Field(default='file', description="知识库分类", min_length=1)
-    content: str = Field(..., description="内容", min_length=1)
+    content: Optional[str] = Field(default=None, description="内容", min_length=1)
     url: Optional[List[str]] = Field(default=[], description="文件URL列表")
 
 
