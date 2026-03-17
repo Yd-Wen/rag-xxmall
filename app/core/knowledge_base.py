@@ -193,7 +193,7 @@ class KnowledgeBase:
         # 校验
         self._validate_type(request.category)
         if _get_record(request.id):
-            return "【跳过】已存在"
+            return "【跳过】知识库已同步"
         # 分割文本
         knowledge_chunks = self._split_text(request.content)
         # 创建 metadata
@@ -213,7 +213,7 @@ class KnowledgeBase:
             "update_time": datetime.now().isoformat()
         }])
 
-        return "【成功】已添加"
+        return "【成功】同步到知识库"
 
     def update(self, request: KnowledgeRequest) -> str:
         """
