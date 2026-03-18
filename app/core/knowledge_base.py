@@ -74,9 +74,9 @@ def update_md5(old_md5: str, new_md5: str) -> None:
         return
     # 读取所有MD5记录
     with open(config.MD5_PATH, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
+        lines = [line.strip() for line in f.readlines()]
     # 过滤掉要删除的MD5字符串
-    new_lines = [line if line.strip() != old_md5 else new_md5 for line in lines]
+    new_lines = [line if line.strip() != old_md5 and line.strip() else new_md5 for line in lines]
     # 将过滤后的MD5记录写回文件
     write_md5(new_lines)
 
