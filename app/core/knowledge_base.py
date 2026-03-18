@@ -318,7 +318,7 @@ class KnowledgeBase:
         _update_record(existing_record['id'], updated_record)
         return "【成功】知识库已更新"
 
-    def get(self, category: str = None, offset: int = 0, limit: int = 10) -> Dict[str,List[Dict]]:
+    def query(self, category: str = 'file', offset: int = 0, limit: int = 10) -> Dict[str,List[Dict]]:
         """
         获取所有知识库（按分类分组）
         :param category: 可选，指定分类获取对应知识库内容，不指定则返回所有内容
@@ -331,34 +331,28 @@ class KnowledgeBase:
             "recommend": [...]
         }
         """
+        # 1. 加载所有记录并筛选指定分类的记录
         records = _load_records()
-        result = {k: [] for k in self.ALLOWED_CATEGORIES}
-
+        target_records = []
         for record in records:
-            record_category = record['category']
-            # 仅返回核心信息，避免数据过大
-            simplified_record = {
-                "id": record['id'],
-                "url": record['url'],
-                "create_time": record['create_time'],
-                "update_time": record['update_time']
-            }
-            # 只将记录添加到对应分类的列表
-            if record_category in result:
-                result[record_category].append(simplified_record)
+            # 只保留指定分类的记录
+            if record['category'] == category:
+                simplified_record = {
+                    "id": record['id'],
+                    "url": record['url'],
+                    "create_time": record['create_time'],
+                    "update_time": record['update_time']
+                }
+                target_records.append(simplified_record)
         
-        # 筛选指定分类
-        if category and category in self.ALLOWED_CATEGORIES:
-            # 先获取指定分类的列表
-            target_list = result[category]
-            # 分页只作用于指定分类的列表
-            paginated_result = target_list[offset:offset + limit]
-            return paginated_result
-        else:
-            # 未指定分类时，对每个分类的列表分别分页
-            for cat in result:
-                result[cat] = result[cat][offset:offset + limit]
-            return result
+        # 计算总数 / 分页处理
+        total = len(target_records)  # 该分类的总记录数（不受分页影响）
+        paginated_data = target_records[offset:offset + limit]  # 分页切片
+        
+        return {
+            "knowledge": paginated_data,
+            "total": total
+        }
 
     def remove(self, record_id: str) -> str:
         """

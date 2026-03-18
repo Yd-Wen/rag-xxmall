@@ -35,17 +35,17 @@ async def upload_knowledge(request: KnowledgeRequest):
     )
 
 @router.post("/query", response_class=JSONResponse)
-async def get_knowledge(query: KnowledgeQuery):
+async def query_knowledge(query: KnowledgeQuery):
     """
     获取知识库
     根据分类获取知识库中的内容，如果不指定分类则返回所有内容
     offset/limit实现分页功能
     """
     kb = KnowledgeBase()
-    result = kb.get(query.category, query.offset, query.limit)
+    result = kb.query(query.category, query.offset, query.limit)
 
     return JSONResponse(
-        content=result.dict() if isinstance(result, dict) else result,
+        content=result,
         status_code=200
     )
 
@@ -55,7 +55,7 @@ async def get_category():
     获取知识库分类
     """
     return JSONResponse(
-        content={"categories": ALLOWED_CATEGORIES},
+        content={"category": ALLOWED_CATEGORIES},
         status_code=200
     )
 
