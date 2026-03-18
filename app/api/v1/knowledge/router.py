@@ -34,7 +34,7 @@ async def upload_knowledge(request: KnowledgeRequest):
         status_code=200
     )
 
-@router.post("/get", response_class=JSONResponse)
+@router.post("/query", response_class=JSONResponse)
 async def get_knowledge(query: KnowledgeQuery):
     """
     获取知识库

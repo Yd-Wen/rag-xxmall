@@ -180,14 +180,26 @@ def _remove_record(record_id: str) -> bool:
         return True
     return False
 
-ALLOWED_CATEGORIES = ['file', 'goods', 'recommend']  # 允许的知识库类型
+ALLOWED_CATEGORIES = [{
+    "name": "文件",
+    "value": "file",
+    "description": "文件知识库，id为文件标题，url为云存储路径"
+}, {
+    "name": "商品",
+    "value": "goods",
+    "description": "商品知识库，id为商品ID，url为商品图片链接列表"
+}, {
+    "name": "推荐",
+    "value": "recommend",
+    "description": "推荐知识库，id为推荐ID，url为推荐图片链接列表"
+}]  # 允许的知识库类型
 
 class KnowledgeBase:
     """
     知识库核心类 - 支持file/goods/recommend三种类型
     """
     def __init__(self):
-        self.ALLOWED_CATEGORIES = ALLOWED_CATEGORIES  # 允许的知识库类型
+        self.ALLOWED_CATEGORIES = [category["value"] for category in ALLOWED_CATEGORIES]  # 允许的知识库类型列表
         os.makedirs(config.PERSIST_DIRECTORY, exist_ok=True)  # 创建数据库目录, 如果已存在则不创建
         # Chroma 数据库实例
         self.chroma = Chroma(
