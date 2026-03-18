@@ -180,12 +180,14 @@ def _remove_record(record_id: str) -> bool:
         return True
     return False
 
+ALLOWED_CATEGORIES = ['file', 'goods', 'recommend']  # 允许的知识库类型
+
 class KnowledgeBase:
     """
     知识库核心类 - 支持file/goods/recommend三种类型
     """
     def __init__(self):
-        self.ALLOWED_CATEGORIES = ['file', 'goods', 'recommend']  # 允许的知识库类型
+        self.ALLOWED_CATEGORIES = ALLOWED_CATEGORIES  # 允许的知识库类型
         os.makedirs(config.PERSIST_DIRECTORY, exist_ok=True)  # 创建数据库目录, 如果已存在则不创建
         # Chroma 数据库实例
         self.chroma = Chroma(
@@ -304,9 +306,12 @@ class KnowledgeBase:
         _update_record(existing_record['id'], updated_record)
         return "【成功】知识库已更新"
 
-    def get(self, category: str = None) -> Dict[str,List[Dict]]:
+    def get(self, category: str = None, offset: int = 0, limit: int = 10) -> Dict[str,List[Dict]]:
         """
         获取所有知识库（按分类分组）
+        :param category: 可选，指定分类获取对应知识库内容，不指定则返回所有内容
+        :param offset: 分页偏移量
+        :param limit: 分页大小
         :return: 分组结果，示例：
         {
             "file": [{"id": "标题1", "url": ["url1"], "create_time": "xxx"}, ...],
@@ -318,7 +323,7 @@ class KnowledgeBase:
         result = {k: [] for k in self.ALLOWED_CATEGORIES}
 
         for record in records:
-            category = record['category']
+            record_category = record['category']
             # 仅返回核心信息，避免数据过大
             simplified_record = {
                 "id": record['id'],
@@ -326,12 +331,22 @@ class KnowledgeBase:
                 "create_time": record['create_time'],
                 "update_time": record['update_time']
             }
-            result[category].append(simplified_record)
+            # 只将记录添加到对应分类的列表
+            if record_category in result:
+                result[record_category].append(simplified_record)
         
+        # 筛选指定分类
         if category and category in self.ALLOWED_CATEGORIES:
-            return {category: result[category]}
-
-        return result
+            # 先获取指定分类的列表
+            target_list = result[category]
+            # 分页只作用于指定分类的列表
+            paginated_result = target_list[offset:offset + limit]
+            return paginated_result
+        else:
+            # 未指定分类时，对每个分类的列表分别分页
+            for cat in result:
+                result[cat] = result[cat][offset:offset + limit]
+            return result
 
     def remove(self, record_id: str) -> str:
         """

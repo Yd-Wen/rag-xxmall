@@ -19,6 +19,11 @@ class KnowledgeRequest(BaseModel):
     content: Optional[str] = Field(default=None, description="内容", min_length=1)
     url: Optional[List[str]] = Field(default=[], description="文件URL列表")
 
+# 知识库查询
+class KnowledgeQuery(BaseModel):
+    category: Optional[str] = Field(default='file', description="知识库分类", min_length=1)
+    offset: Optional[int] = Field(default=0, description="分页偏移量", ge=0)
+    limit: Optional[int] = Field(default=10, description="分页大小", ge=1)
 
 class KnowledgeResponse(BaseModel):
     id: str = Field(..., description="唯一标识：文件标题/商品ID/推荐ID", min_length=1)

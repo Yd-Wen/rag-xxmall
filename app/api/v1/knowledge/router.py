@@ -1,11 +1,11 @@
 import json
 
 from fastapi import APIRouter, Query, Path
-from app.api.v1.knowledge.schema import KnowledgeRequest, KnowledgeResponse
+from app.api.v1.knowledge.schema import KnowledgeRequest, KnowledgeResponse, KnowledgeQuery
 from fastapi.responses import JSONResponse
 
 from app.core.rag import RAG
-from app.core.knowledge_base import KnowledgeBase
+from app.core.knowledge_base import KnowledgeBase, ALLOWED_CATEGORIES
 
 # 定义模块路由
 router = APIRouter(
@@ -34,17 +34,28 @@ async def upload_knowledge(request: KnowledgeRequest):
         status_code=200
     )
 
-@router.get("/get", response_class=JSONResponse)
-async def get_knowledge(category: str = Query(None, description="知识库分类，不指定则返回所有内容")):
+@router.post("/get", response_class=JSONResponse)
+async def get_knowledge(query: KnowledgeQuery):
     """
     获取知识库
     根据分类获取知识库中的内容，如果不指定分类则返回所有内容
+    offset/limit实现分页功能
     """
     kb = KnowledgeBase()
-    result = kb.get(category)
+    result = kb.get(query.category, query.offset, query.limit)
 
     return JSONResponse(
         content=result.dict() if isinstance(result, dict) else result,
+        status_code=200
+    )
+
+@router.get("/category", response_class=JSONResponse)
+async def get_category():
+    """
+    获取知识库分类
+    """
+    return JSONResponse(
+        content={"categories": ALLOWED_CATEGORIES},
         status_code=200
     )
 
