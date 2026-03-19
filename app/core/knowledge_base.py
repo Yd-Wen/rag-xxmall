@@ -271,14 +271,15 @@ class KnowledgeBase:
         # 保存 MD5
         append_md5([md5_str])
         # 保存记录
+        time = datetime.now().isoformat()
         _append_records([{
             "id": request.id,
             "category": request.category,
             "url": request.url,
             "md5": md5_str,
             "chroma_ids": chroma_ids,
-            "create_time": datetime.now().isoformat(),
-            "update_time": datetime.now().isoformat()
+            "create_time": time,
+            "update_time": time
         }])
 
         return "【成功】同步到知识库"
