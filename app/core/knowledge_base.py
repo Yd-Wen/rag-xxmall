@@ -12,173 +12,16 @@
     }
 """
 import os
-import hashlib
-import json
 from app.core.config import settings as config
 from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from datetime import datetime
 from app.api.v1.knowledge.schema import KnowledgeRequest
-from typing import List, Dict, Optional
+from typing import List, Dict
+from app.common.md5 import get_md5, check_md5, append_md5, update_md5, remove_md5
+from app.common.record import load_records, append_records, get_record, update_record, remove_record
 
-
-def check_md5(md5_str: str) -> bool:
-    """
-    检查MD5字符串是否已经处理过
-    :param md5_str:
-    :return:
-    """
-    if not os.path.exists(config.MD5_PATH):
-        # 文件不存在
-        open(config.MD5_PATH, 'w', encoding='utf-8').close()
-        return False
-    else:
-        for line in open(config.MD5_PATH, 'r', encoding='utf-8').readlines():
-            line = line.strip()  # 去掉换行符
-            if line == md5_str:
-                # 已经处理过
-                return True
-        return False
-
-
-def append_md5(md5_str_list: List[str]) -> None:
-    """
-    写入MD5字符串（追加模式）
-    :param md5_str_list:
-    :return:
-    """
-    # 追加模式
-    with open(config.MD5_PATH, 'a', encoding='utf-8') as f:
-        for md5_str in md5_str_list:
-            f.write(md5_str + '\n')
-
-def write_md5(md5_str_list: List[str]) -> None:
-    """
-    写入MD5字符串（覆盖模式）
-    :param md5_str_list:
-    :return:
-    """
-    with open(config.MD5_PATH, 'w', encoding='utf-8') as f:
-        for md5_str in md5_str_list:
-            f.write(md5_str + '\n')
-
-def update_md5(old_md5: str, new_md5: str) -> None:
-    """
-    更新MD5字符串（先删除旧的，再覆盖新的）
-    :param old_md5:
-    :param new_md5:
-    :return:
-    """
-    if not os.path.exists(config.MD5_PATH):
-        return
-    # 读取所有MD5记录
-    with open(config.MD5_PATH, 'r', encoding='utf-8') as f:
-        lines = [line.strip() for line in f.readlines()]
-    # 过滤掉要删除的MD5字符串
-    new_lines = [line if line.strip() != old_md5 and line.strip() else new_md5 for line in lines]
-    # 将过滤后的MD5记录写回文件
-    write_md5(new_lines)
-
-def get_md5(file_str, encoding='utf-8') -> str:
-    """
-    文件内容转换成MD5值
-    :param file_str:
-    :param encoding:
-    :return:
-    """
-    str_bytes = file_str.encode(encoding)    # 字符串转字节流
-    md5 = hashlib.md5()                 # 创建MD5对象
-    md5.update(str_bytes)               # 更新MD5对象
-    md5_hex = md5.hexdigest()           # 获取MD5的十六进制字符串
-    return md5_hex
-
-def remove_md5(md5_str: str) -> None:
-    """
-    从MD5记录文件中删除指定的MD5字符串（先删除旧的，再覆盖新的）
-    :param md5_str:
-    :return:
-    """
-    if not os.path.exists(config.MD5_PATH):
-        return
-    # 读取所有MD5记录
-    with open(config.MD5_PATH, 'r', encoding='utf-8') as f:
-        lines = [line.strip() for line in f.readlines()]
-    # 过滤掉要删除的MD5字符串
-    new_lines = [line for line in lines if line.strip() != md5_str and line.strip()]
-    # 将过滤后的MD5记录写回文件
-    write_md5(new_lines)
-
-def _load_records() -> List[Dict]:
-
-    if not os.path.exists(config.KNOWLEDGE_RECORD_PATH):
-        # 初始化空文件
-        with open(config.KNOWLEDGE_RECORD_PATH, 'w', encoding='utf-8') as f:
-            json.dump([], f, ensure_ascii=False, indent=2)
-        return []
-    
-    try:
-        with open(config.KNOWLEDGE_RECORD_PATH, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except json.JSONDecodeError:
-        # 文件损坏时重置
-        with open(config.KNOWLEDGE_RECORD_PATH, 'w', encoding='utf-8') as f:
-            json.dump([], f, ensure_ascii=False, indent=2)
-        return []
-
-def _append_records(records: List[Dict]) -> None:
-    """
-    追加知识库记录到文件
-    """
-    # 先加载现有记录
-    existing_records = _load_records()
-    # 合并新记录
-    existing_records.extend(records)
-    # 覆盖写入合并后的记录（保证JSON格式正确）
-    _write_records(existing_records)
-
-def _write_records(records: List[Dict]) -> None:
-    """
-    保存知识库记录到文件（覆盖写入）
-    """
-    with open(config.KNOWLEDGE_RECORD_PATH, 'w', encoding='utf-8') as f:
-        json.dump(records, f, ensure_ascii=False, indent=2)
-
-def _get_record(record_id: str) -> Optional[Dict]:
-    """
-    根据唯一ID查询知识库记录
-    """
-    records = _load_records()
-    for record in records:
-        if record.get('id') == record_id:
-            return record
-    return None
-
-def _update_record(record_id: str, new_record: Dict) -> bool:
-    """
-    根据唯一ID更新知识库记录（先删除旧的，再覆盖新的）
-    """
-    records = _load_records()
-    updated = False
-    for idx, record in enumerate(records):
-        if record.get('id') == record_id:
-            records[idx] = new_record
-            updated = True
-            break
-    if updated:
-        _write_records(records)
-    return updated
-
-def _remove_record(record_id: str) -> bool:
-    """
-    根据唯一ID删除知识库记录（先删除旧的，再覆盖新的）
-    """
-    records = _load_records()
-    new_records = [record for record in records if record.get('id') != record_id]
-    if len(new_records) < len(records):
-        _write_records(new_records)
-        return True
-    return False
 
 ALLOWED_CATEGORIES = [{
     "name": "文件",
@@ -256,7 +99,7 @@ class KnowledgeBase:
         """
         # 校验
         self._validate_type(request.category)
-        if _get_record(request.id):
+        if get_record(request.id):
             return "【跳过】知识库已同步"
         # 获取 MD5
         md5_str = get_md5(request.content)
@@ -272,7 +115,7 @@ class KnowledgeBase:
         append_md5([md5_str])
         # 保存记录
         time = datetime.now().isoformat()
-        _append_records([{
+        append_records([{
             "id": request.id,
             "category": request.category,
             "url": request.url,
@@ -291,7 +134,7 @@ class KnowledgeBase:
         # 校验
         self._validate_type(request.category)
         # 获取现有记录
-        existing_record = _get_record(request.id)
+        existing_record = get_record(request.id)
         if not existing_record:
             if request.category != 'file':
                 return self.upload(request)  # 对于非文件类型，如果记录不存在则直接上传
@@ -316,7 +159,7 @@ class KnowledgeBase:
         updated_record["chroma_ids"] = new_chroma_ids
         updated_record["update_time"] = datetime.now().isoformat()
         # 保存更新后的记录
-        _update_record(existing_record['id'], updated_record)
+        update_record(existing_record['id'], updated_record)
         return "【成功】知识库已更新"
 
     def query(self, category: str = 'file', offset: int = 0, limit: int = 10) -> Dict[str,List[Dict]]:
@@ -333,7 +176,7 @@ class KnowledgeBase:
         }
         """
         # 1. 加载所有记录并筛选指定分类的记录
-        records = _load_records()
+        records = load_records()
         target_records = []
         for record in records:
             # 只保留指定分类的记录
@@ -361,7 +204,7 @@ class KnowledgeBase:
         :param record_id: 唯一ID（file=标题，goods/recommend=ID）
         :return: 操作结果
         """
-        existing_record = _get_record(record_id)
+        existing_record = get_record(record_id)
         if not existing_record:
             return "【跳过】知识库不存在"
         
@@ -370,5 +213,5 @@ class KnowledgeBase:
         # 删除 MD5
         remove_md5(existing_record['md5'])
         # 删除记录
-        _remove_record(record_id)
+        remove_record(record_id)
         return "【成功】知识库已删除"
