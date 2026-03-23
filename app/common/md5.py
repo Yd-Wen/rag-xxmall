@@ -11,7 +11,8 @@ def check_md5(md5_str: str) -> bool:
     :return:
     """
     if not os.path.exists(config.MD5_PATH):
-        # 文件不存在
+        # 文件不存在，创建父目录和空文件
+        os.makedirs(os.path.dirname(config.MD5_PATH), exist_ok=True)
         open(config.MD5_PATH, 'w', encoding='utf-8').close()
         return False
     else:

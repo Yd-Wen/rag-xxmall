@@ -7,7 +7,8 @@ from typing import List, Dict, Optional
 def load_records() -> List[Dict]:
 
     if not os.path.exists(config.KNOWLEDGE_RECORD_PATH):
-        # 初始化空文件
+        # 创建父目录并初始化空文件
+        os.makedirs(os.path.dirname(config.KNOWLEDGE_RECORD_PATH), exist_ok=True)
         with open(config.KNOWLEDGE_RECORD_PATH, 'w', encoding='utf-8') as f:
             json.dump([], f, ensure_ascii=False, indent=2)
         return []
