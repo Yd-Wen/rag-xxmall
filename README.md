@@ -6,7 +6,13 @@
 
 本项目是一个为前端应用提供接口的 AI 智能客服后端系统，采用 RAG 技术架构，结合向量检索与大语言模型，实现基于知识库的智能问答服务。
 
-**远程仓库**: https://gitee.com/yindong-wen/rag-xxmall.git
+- 演示地址：[https://api-xxmall.yindongwen.top/docs](https://api-xxmall.yindongwen.top/docs)
+
+- 仓库地址：
+  
+    - [https://gitee.com/yindong-wen/rag-xxmall](https://gitee.com/yindong-wen/rag-xxmall)
+    
+    - [https://github.com/Yd-Wen/rag-xxmall](https://github.com/Yd-Wen/rag-xxmall)
 
 ## 技术栈
 
