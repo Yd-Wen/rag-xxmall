@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     KNOWLEDGE_RECORD_PATH: str = str(BASE_DIR / "data" / "knowledge_base" / "records.json")
     PERSIST_DIRECTORY: str = str(BASE_DIR / "data" / "chroma_db")
     HISTORY_PATH: str = str(BASE_DIR / "data" / "chat_history")
+    SYSTEM_PROMPT_PATH: str = str(BASE_DIR / "data" / "prompt" / "system_prompt.txt")
 
     # -------------------------- API密钥配置 --------------------------
     DASHSCOPE_API_KEY: str  # 必传项（无默认值，强制从环境变量/配置文件读取）

@@ -1,5 +1,6 @@
 # 数据目录
-data/
+data/*
+!data/prompt/
 
 # 编译产物
 __pycache__/

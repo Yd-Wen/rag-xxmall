@@ -8,6 +8,18 @@ from app.core.config import settings as config
 from app.core.history_store import get_history
 from langchain_core.documents import Document
 from langchain_core.runnables.utils import ConfigurableFieldSpec
+import os
+
+
+# 默认system prompt
+DEFAULT_SYSTEM_PROMPT = (
+    "以我提供的参考资料为依据，简洁专业地回答用户问题。回答问题时要求："
+    "回答内容格式上不要出现多级列表，最多一级列表；"
+    "不要出现多级标题，最多一级标题；"
+    "不要出现连续的换行符；"
+    "对于没有在知识库匹配到答案的问题，提醒用户联系人工客服。"
+    "参考资料：{context}。"
+)
 
 
 class RAG:
@@ -16,8 +28,10 @@ class RAG:
             embedding=DashScopeEmbeddings(dashscope_api_key=config.DASHSCOPE_API_KEY,
                                           model=config.EMBEDDING_MODEL_NAME),
         )
+        # 从文件读取system prompt
+        system_prompt = self._load_system_prompt()
         self.prompt_template = ChatPromptTemplate.from_messages([
-            ("system", "以我提供的参考资料为依据，简洁专业地回答用户问题。回答问题时要求：回答内容格式上不要出现多级列表，最多一级列表；不要出现多级标题，最多一级标题；不要出现连续的换行符；对于没有在知识库匹配到答案的问题，提醒用户联系人工客服。参考资料：{context}。"),
+            ("system", system_prompt),
             ("system", "并且我提供用户的对话历史记录。如下："),
             MessagesPlaceholder("history"),
             ("human", "请回答用户提问：{question}")
@@ -27,6 +41,13 @@ class RAG:
             model=config.CHAT_MODEL_NAME
         )
         self.chain = self.__get_chain()
+    
+    def _load_system_prompt(self) -> str:
+        """从文件读取system prompt，文件不存在则返回默认提示词"""
+        if os.path.exists(config.SYSTEM_PROMPT_PATH):
+            with open(config.SYSTEM_PROMPT_PATH, 'r', encoding='utf-8') as f:
+                return f.read()
+        return DEFAULT_SYSTEM_PROMPT
 
     def __get_chain(self):
         retriever = self.vector_store.get_retriever()
